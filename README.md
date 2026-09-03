@@ -108,10 +108,5 @@ docs/deployment.md   One-time cloud setup (GCP + Neon) for the production deploy
 .github/    CI + CD workflow
 CLAUDE.md   How this codebase is organized, and how to safely extend it (new providers, new
             visualizations) — read this before making non-trivial changes, by hand or with AI assistance
+docs/architecture.md   Diagrams of the system (component, deployment, data model, key flows)
 ```
-
-## Multi-account git note
-
-This repo is configured to use a personal git identity/SSH key automatically (see the machine-level
-`~/.gitconfig`'s `includeIf` for `~/Personal/`), separate from any company GitLab identity used elsewhere
-on this machine — no per-repo setup needed.
