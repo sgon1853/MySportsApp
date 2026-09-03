@@ -43,7 +43,7 @@ gcloud services enable \
   secretmanager.googleapis.com \
   iamcredentials.googleapis.com
 
-gcloud artifactregistry repositories create mysportsapp \
+gcloud artifacts repositories create mysportsapp \
   --repository-format=docker \
   --location=us-central1
 ```
