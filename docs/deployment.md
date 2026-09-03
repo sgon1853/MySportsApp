@@ -131,6 +131,22 @@ gcloud iam workload-identity-pools providers describe github-provider \
 | `NEON_DATASOURCE_URL` | `jdbc:postgresql://<neon-host>/<database>?sslmode=require` |
 | `NEON_DATASOURCE_USERNAME` | your Neon database username |
 | `ADMIN_BOOTSTRAP_EMAIL` | the email you want as the first admin account |
+| `APP_CORS_ALLOWED_ORIGIN_PATTERNS` | see below — this one has a chicken-and-egg wrinkle |
+
+**About `APP_CORS_ALLOWED_ORIGIN_PATTERNS`**: the backend needs to know the frontend's origin to
+accept its cross-origin calls, but the frontend's Cloud Run URL isn't assigned until it's deployed
+at least once — and that first deploy is exactly what you're setting these variables up to trigger.
+This only blocks *browser* calls, not the deploy pipeline itself (the automated smoke test hits
+`/actuator/health` directly with `curl`, which never sends an `Origin` header), so it's safe to
+bootstrap in two passes:
+
+1. Leave this variable unset (or set to `http://localhost:*`) for the first deploy. Both services will
+   deploy and pass their smoke tests normally.
+2. Open the **Actions** tab, find the completed `deploy-frontend` job, and copy the URL it printed at
+   the end (something like `https://mysportsapp-frontend-xxxxxxxxxx-uc.a.run.app`).
+3. Set `APP_CORS_ALLOWED_ORIGIN_PATTERNS` to that exact URL, then re-trigger the workflow (an empty
+   commit, or re-run it from the Actions tab) so the backend redeploys with it. From then on it stays
+   correct across future deploys, since a Cloud Run service's URL doesn't change once created.
 
 Then also set up [branch protection](../README.md) if you haven't — the
 deploy jobs only run on pushes to `master`, and branch protection is what

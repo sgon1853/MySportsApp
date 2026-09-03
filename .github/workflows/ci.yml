@@ -132,7 +132,7 @@ jobs:
             --region "${{ vars.GCP_REGION }}" \
             --allow-unauthenticated \
             --no-traffic --tag candidate \
-            --set-env-vars "SPRING_PROFILES_ACTIVE=docker,SPRING_DATASOURCE_URL=${{ vars.NEON_DATASOURCE_URL }},SPRING_DATASOURCE_USERNAME=${{ vars.NEON_DATASOURCE_USERNAME }},ADMIN_BOOTSTRAP_EMAIL=${{ vars.ADMIN_BOOTSTRAP_EMAIL }},JWT_EXPIRATION_DAYS=7" \
+            --set-env-vars "SPRING_PROFILES_ACTIVE=docker,SPRING_DATASOURCE_URL=${{ vars.NEON_DATASOURCE_URL }},SPRING_DATASOURCE_USERNAME=${{ vars.NEON_DATASOURCE_USERNAME }},ADMIN_BOOTSTRAP_EMAIL=${{ vars.ADMIN_BOOTSTRAP_EMAIL }},JWT_EXPIRATION_DAYS=7,APP_CORS_ALLOWED_ORIGIN_PATTERNS=${{ vars.APP_CORS_ALLOWED_ORIGIN_PATTERNS || 'http://localhost:*' }}" \
             --set-secrets "JWT_SECRET=jwt-secret:latest,ADMIN_BOOTSTRAP_PASSWORD=admin-bootstrap-password:latest,SPRING_DATASOURCE_PASSWORD=db-password:latest" \
             --quiet
       - name: Smoke-test the candidate revision (proves app + DB + migrations are healthy)

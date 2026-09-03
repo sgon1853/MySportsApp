@@ -26,23 +26,28 @@ import java.util.List;
  * for auth), the two auth endpoints are public, {@code /api/v1/admin/**}
  * requires ROLE_ADMIN, everything else requires authentication.
  *
- * <p>CORS only matters when the frontend is served from a different origin
- * than the backend (e.g. two separate Cloud Run services calling each other
- * directly). Same-origin deployments (docker-compose/nginx proxying "/api")
- * don't need it, but enabling it there is harmless - the browser only
- * consults CORS headers for cross-origin requests in the first place.
+ * <p>CORS matters for genuinely cross-origin deployments (e.g. two separate
+ * Cloud Run services calling each other directly), but Spring's CORS filter
+ * still inspects every request that carries an {@code Origin} header - and
+ * browsers send one on same-origin POST/PUT/DELETE too (not just
+ * cross-origin ones), including requests proxied same-origin through nginx
+ * (docker-compose, local e2e runs). So the allowed-origin list has to cover
+ * those proxied origins too, or Spring itself rejects them with 403 even
+ * though the browser would have allowed the response through. Origin
+ * *patterns* (wildcards) are used rather than exact origins so one default
+ * covers every local port docker-compose/CI might publish the frontend on.
  */
 @Configuration
 public class SecurityConfig {
 
     private final ObjectMapper objectMapper;
-    private final List<String> corsAllowedOrigins;
+    private final List<String> corsAllowedOriginPatterns;
 
     public SecurityConfig(
             ObjectMapper objectMapper,
-            @Value("${app.cors.allowed-origins}") List<String> corsAllowedOrigins) {
+            @Value("${app.cors.allowed-origin-patterns}") List<String> corsAllowedOriginPatterns) {
         this.objectMapper = objectMapper;
-        this.corsAllowedOrigins = corsAllowedOrigins;
+        this.corsAllowedOriginPatterns = corsAllowedOriginPatterns;
     }
 
     @Bean
@@ -53,7 +58,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(corsAllowedOrigins);
+        configuration.setAllowedOriginPatterns(corsAllowedOriginPatterns);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
 
