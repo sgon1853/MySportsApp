@@ -7,6 +7,13 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+
+# Vite inlines env vars into the JS bundle at build time, not runtime - so
+# this has to be a build arg, not something set later on the running
+# container. Unset/empty (docker-compose, local builds) falls back to the
+# same-origin "/api" default in src/api/client.ts.
+ARG VITE_API_BASE_URL=""
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
 # --- runtime stage -----------------------------------------------------------

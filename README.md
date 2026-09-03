@@ -15,9 +15,8 @@ Docker containers with no cloud-provider-specific dependencies.
 [`CLAUDE.md`](CLAUDE.md) for how the codebase is organized and how to extend it.
 
 **Not yet built:** Cressi Donatello, Apple Health, and Renpho providers (the plugin pattern that makes
-adding them straightforward already exists — see "Adding a new data provider" in `CLAUDE.md`); real cloud
-deployment configs beyond the generic Docker Compose stack; email delivery for admin invites (invite links
-are relayed manually for now).
+adding them straightforward already exists — see "Adding a new data provider" in `CLAUDE.md`); email
+delivery for admin invites (invite links are relayed manually for now).
 
 ## Stack
 
@@ -27,7 +26,7 @@ are relayed manually for now).
 | Frontend | React + TypeScript (Vite), TanStack Query, React Router, Recharts, Leaflet |
 | Auth | JWT (stateless), admin-invited users, no public registration |
 | Testing | JUnit 5 + Testcontainers + ArchUnit (backend), Vitest + React Testing Library + MSW (frontend), Playwright (e2e) |
-| Deployment | Docker Compose (Postgres + backend + frontend/nginx), cloud-agnostic |
+| Deployment | Docker Compose locally; Google Cloud Run + Neon Postgres in production, deployed via CI/CD on every merge to `master` |
 
 ## Running it locally with Docker Compose (closest to production)
 
@@ -78,6 +77,14 @@ cd frontend && npm run e2e
 
 All three run in CI on every push/PR — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
+## Deploying to production
+
+Every push to `master` that passes CI deploys automatically to Google Cloud Run (backend + frontend as
+separate services, backed by a free Neon Postgres). Deploys are gated: each new revision is smoke-tested
+on its own private URL before it receives any production traffic, so a bad deploy never reaches users —
+see [`docs/deployment.md`](docs/deployment.md) for the one-time cloud setup this depends on and how
+rollback/rotation works.
+
 ## Importing your data
 
 1. Log in, go to **Upload**.
@@ -95,9 +102,10 @@ Garmin Connect-style GPX export if you route your Suunto data through another pl
 ```
 backend/    Spring Boot REST API (Java 21, Maven)
 frontend/   React + TypeScript SPA (Vite)
-deploy/     docker-compose.yml — the whole stack
+deploy/     docker-compose.yml — the whole stack, for local use
 docs/adr/   Architecture Decision Records
-.github/    CI workflow
+docs/deployment.md   One-time cloud setup (GCP + Neon) for the production deploy pipeline
+.github/    CI + CD workflow
 CLAUDE.md   How this codebase is organized, and how to safely extend it (new providers, new
             visualizations) — read this before making non-trivial changes, by hand or with AI assistance
 ```

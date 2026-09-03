@@ -62,7 +62,7 @@ jobs:
         run: docker compose -f deploy/docker-compose.yml --env-file .env up --build -d
       - name: Wait for backend health
         run: |
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             curl -sf http://localhost:8080/actuator/health && exit 0
             sleep 5
           done
@@ -91,3 +91,118 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose -f deploy/docker-compose.yml --env-file .env down -v
+
+  # Deploys only run for actual pushes to master (i.e. after a PR merges
+  # past branch protection's required checks above), never for PR runs.
+  # Both jobs deploy the new revision with --no-traffic, smoke-test it on
+  # its own per-revision URL, and only then shift production traffic to
+  # it. A failed smoke test simply never gets promoted - production keeps
+  # serving the last-good revision untouched, so there is nothing to roll
+  # back. See docs/deployment.md for the one-time GCP/Neon setup this
+  # depends on.
+  deploy-backend:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, e2e]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      backend_url: ${{ steps.describe.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA_EMAIL }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+      - name: Build and push image
+        run: |
+          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/mysportsapp/backend:${{ github.sha }}"
+          docker build -t "$IMAGE" backend
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Deploy candidate revision (no traffic yet)
+        run: |
+          gcloud run deploy mysportsapp-backend \
+            --image "$IMAGE" \
+            --region "${{ vars.GCP_REGION }}" \
+            --allow-unauthenticated \
+            --no-traffic --tag candidate \
+            --set-env-vars "SPRING_PROFILES_ACTIVE=docker,SPRING_DATASOURCE_URL=${{ vars.NEON_DATASOURCE_URL }},SPRING_DATASOURCE_USERNAME=${{ vars.NEON_DATASOURCE_USERNAME }},ADMIN_BOOTSTRAP_EMAIL=${{ vars.ADMIN_BOOTSTRAP_EMAIL }},JWT_EXPIRATION_DAYS=7" \
+            --set-secrets "JWT_SECRET=jwt-secret:latest,ADMIN_BOOTSTRAP_PASSWORD=admin-bootstrap-password:latest,SPRING_DATASOURCE_PASSWORD=db-password:latest" \
+            --quiet
+      - name: Smoke-test the candidate revision (proves app + DB + migrations are healthy)
+        run: |
+          CANDIDATE_URL=$(gcloud run services describe mysportsapp-backend --region "${{ vars.GCP_REGION }}" --format=json \
+            | jq -r '.status.traffic[] | select(.tag=="candidate") | .url')
+          echo "Candidate URL: $CANDIDATE_URL"
+          for _ in $(seq 1 10); do
+            if curl -sf "$CANDIDATE_URL/actuator/health"; then
+              echo "healthy"
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "::error::Candidate backend revision never became healthy - not promoting. Production traffic is untouched." >&2
+          exit 1
+      - name: Promote candidate to serve production traffic
+        id: describe
+        run: |
+          gcloud run services update-traffic mysportsapp-backend --region "${{ vars.GCP_REGION }}" --to-latest --quiet
+          URL=$(gcloud run services describe mysportsapp-backend --region "${{ vars.GCP_REGION }}" --format='value(status.url)')
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: [deploy-backend]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA_EMAIL }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+      - name: Build and push image (backend URL baked in at build time)
+        run: |
+          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/mysportsapp/frontend:${{ github.sha }}"
+          docker build \
+            --build-arg VITE_API_BASE_URL="${{ needs.deploy-backend.outputs.backend_url }}/api" \
+            -t "$IMAGE" frontend
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Deploy candidate revision (no traffic yet)
+        run: |
+          gcloud run deploy mysportsapp-frontend \
+            --image "$IMAGE" \
+            --region "${{ vars.GCP_REGION }}" \
+            --allow-unauthenticated \
+            --no-traffic --tag candidate \
+            --quiet
+      - name: Smoke-test the candidate revision
+        run: |
+          CANDIDATE_URL=$(gcloud run services describe mysportsapp-frontend --region "${{ vars.GCP_REGION }}" --format=json \
+            | jq -r '.status.traffic[] | select(.tag=="candidate") | .url')
+          echo "Candidate URL: $CANDIDATE_URL"
+          for _ in $(seq 1 10); do
+            if curl -sf -o /dev/null "$CANDIDATE_URL/"; then
+              echo "healthy"
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "::error::Candidate frontend revision never became healthy - not promoting. Production traffic is untouched." >&2
+          exit 1
+      - name: Promote candidate to serve production traffic
+        run: |
+          gcloud run services update-traffic mysportsapp-frontend --region "${{ vars.GCP_REGION }}" --to-latest --quiet
+          URL=$(gcloud run services describe mysportsapp-frontend --region "${{ vars.GCP_REGION }}" --format='value(status.url)')
+          echo "Live at: $URL"
