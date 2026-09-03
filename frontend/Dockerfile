@@ -25,6 +25,12 @@ FROM nginx:alpine AS runtime
 # runs get the default below. Nginx's own $-prefixed runtime variables
 # (like $uri, $host) are untouched since they aren't real env vars.
 ENV PORT=80
+# docker-compose's service name for the backend; a deployment where this
+# nginx never actually proxies "/api/" itself (Cloud Run) should override
+# this to any host:port nginx can resolve without a real DNS lookup (an IP
+# literal, e.g. 127.0.0.1:1) - see nginx.conf.template for why it still
+# needs to be resolvable even when unused.
+ENV BACKEND_UPSTREAM=backend:8080
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 

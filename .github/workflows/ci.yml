@@ -199,11 +199,18 @@ jobs:
             echo "First-ever deploy of mysportsapp-frontend - skipping --no-traffic (nothing to canary against yet)."
             NO_TRAFFIC_FLAG=""
           fi
+          # BACKEND_UPSTREAM=127.0.0.1:1 is deliberately unreachable - the
+          # frontend calls the backend directly via its own Cloud Run URL
+          # (baked in above), so nginx's "/api/" proxy_pass is dead code
+          # here. It still needs to be *something* nginx can resolve at
+          # startup without a real DNS lookup (an IP literal always is),
+          # or nginx refuses to start at all - see nginx.conf.template.
           gcloud run deploy mysportsapp-frontend \
             --image "$IMAGE" \
             --region "${{ vars.GCP_REGION }}" \
             --allow-unauthenticated \
             $NO_TRAFFIC_FLAG --tag candidate \
+            --set-env-vars "BACKEND_UPSTREAM=127.0.0.1:1" \
             --quiet
       - name: Smoke-test the candidate revision
         run: |
