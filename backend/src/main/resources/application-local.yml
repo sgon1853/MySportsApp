@@ -1,0 +1,19 @@
+# Used when running the app directly on the host against
+# `docker compose up postgres` (or any local Postgres):
+#   ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+#
+# Every value has a working local-dev default, so nothing here is mandatory
+# just to run the app or its tests.
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mysportsapp}
+    username: ${SPRING_DATASOURCE_USERNAME:mysportsapp}
+    password: ${SPRING_DATASOURCE_PASSWORD:mysportsapp}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-local-secret-do-not-use-in-production}
+    expiration-days: ${JWT_EXPIRATION_DAYS:7}
+  admin-bootstrap:
+    email: ${ADMIN_BOOTSTRAP_EMAIL:}
+    password: ${ADMIN_BOOTSTRAP_PASSWORD:}

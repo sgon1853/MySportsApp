@@ -1,0 +1,109 @@
+# MySportsApp
+
+A personal, multi-tenant sports & health tracking app. Upload data exported from your devices/apps
+(a Suunto watch, a dive computer, Apple Health, a smart scale), it gets deduplicated and stored, and the
+app shows the visualization that makes sense for that kind of data — a map + trend charts for a GPS
+activity, a depth profile for a dive, a weight trend for scale data, and so on.
+
+Runs the same way locally and on any cloud host: a Spring Boot REST API, a React SPA, and Postgres, all in
+Docker containers with no cloud-provider-specific dependencies.
+
+## Status
+
+**Phase 1 (current):** full architecture in place, one data provider fully working end to end —
+**Suunto / GPX** file uploads. See [`docs/adr/`](docs/adr/) for the key architecture decisions and
+[`CLAUDE.md`](CLAUDE.md) for how the codebase is organized and how to extend it.
+
+**Not yet built:** Cressi Donatello, Apple Health, and Renpho providers (the plugin pattern that makes
+adding them straightforward already exists — see "Adding a new data provider" in `CLAUDE.md`); real cloud
+deployment configs beyond the generic Docker Compose stack; email delivery for admin invites (invite links
+are relayed manually for now).
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | Java 21, Spring Boot (Web, Security, Data JPA, Flyway), Postgres |
+| Frontend | React + TypeScript (Vite), TanStack Query, React Router, Recharts, Leaflet |
+| Auth | JWT (stateless), admin-invited users, no public registration |
+| Testing | JUnit 5 + Testcontainers + ArchUnit (backend), Vitest + React Testing Library + MSW (frontend), Playwright (e2e) |
+| Deployment | Docker Compose (Postgres + backend + frontend/nginx), cloud-agnostic |
+
+## Running it locally with Docker Compose (closest to production)
+
+```bash
+cp .env.example .env   # then edit .env with real values (at minimum change the passwords/JWT_SECRET)
+docker compose -f deploy/docker-compose.yml --env-file .env up --build
+```
+
+- Frontend: http://localhost:8081
+- Backend API: http://localhost:8080/api/v1
+- Log in with the `ADMIN_BOOTSTRAP_EMAIL` / `ADMIN_BOOTSTRAP_PASSWORD` you set in `.env` — that account is
+  created automatically the first time the backend starts.
+
+Stop it with `docker compose -f deploy/docker-compose.yml down` (add `-v` to also wipe the Postgres
+volume).
+
+## Running it for local development (faster inner loop)
+
+Start only Postgres in Docker, then run backend and frontend directly with hot reload:
+
+```bash
+cp .env.example .env
+docker compose -f deploy/docker-compose.yml --env-file .env up postgres -d
+
+cd backend
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+
+# in a second terminal
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend dev server: http://localhost:5173 (proxies `/api` to the backend on port 8080).
+
+## Testing
+
+```bash
+# Backend: unit tests + Testcontainers integration tests (requires Docker running)
+cd backend && ./mvnw verify
+
+# Frontend: lint, unit/component tests, production build
+cd frontend && npm run lint && npm run test && npm run build
+
+# End-to-end (requires the full docker compose stack running — see above)
+cd frontend && npm run e2e
+```
+
+All three run in CI on every push/PR — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+## Importing your data
+
+1. Log in, go to **Upload**.
+2. Pick the provider that matches where the file came from (only providers the backend actually supports
+   appear in the dropdown).
+3. Pick the exported file and submit. You'll see how many records were parsed, inserted, and skipped as
+   duplicates.
+4. Go to **Activities** — the new data appears automatically.
+
+Currently supported: **Suunto Race S**, exported as a `.gpx` file (from the Suunto app, or via Strava/
+Garmin Connect-style GPX export if you route your Suunto data through another platform).
+
+## Repository layout
+
+```
+backend/    Spring Boot REST API (Java 21, Maven)
+frontend/   React + TypeScript SPA (Vite)
+deploy/     docker-compose.yml — the whole stack
+docs/adr/   Architecture Decision Records
+.github/    CI workflow
+CLAUDE.md   How this codebase is organized, and how to safely extend it (new providers, new
+            visualizations) — read this before making non-trivial changes, by hand or with AI assistance
+```
+
+## Multi-account git note
+
+This repo is configured to use a personal git identity/SSH key automatically (see the machine-level
+`~/.gitconfig`'s `includeIf` for `~/Personal/`), separate from any company GitLab identity used elsewhere
+on this machine — no per-repo setup needed.

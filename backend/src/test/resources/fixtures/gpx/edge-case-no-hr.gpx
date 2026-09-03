@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="SuuntoApp"
+     xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <trk>
+    <name>Quiet Walk</name>
+    <trkseg>
+      <trkpt lat="51.500700" lon="-0.124600">
+        <ele>15.0</ele>
+        <time>2026-06-03T09:00:00Z</time>
+      </trkpt>
+      <trkpt lat="51.500850" lon="-0.124450">
+        <ele>15.3</ele>
+        <time>2026-06-03T09:00:30Z</time>
+      </trkpt>
+      <trkpt lat="51.501000" lon="-0.124300">
+        <ele>15.6</ele>
+        <time>2026-06-03T09:01:00Z</time>
+      </trkpt>
+      <trkpt lat="51.501150" lon="-0.124150">
+        <ele>15.4</ele>
+        <time>2026-06-03T09:01:30Z</time>
+      </trkpt>
+      <trkpt lat="51.501300" lon="-0.124000">
+        <ele>15.8</ele>
+        <time>2026-06-03T09:02:00Z</time>
+      </trkpt>
+      <trkpt lat="51.501450" lon="-0.123850">
+        <ele>16.1</ele>
+        <time>2026-06-03T09:02:30Z</time>
+      </trkpt>
+      <trkpt lat="51.501600" lon="-0.123700">
+        <ele>15.9</ele>
+        <time>2026-06-03T09:03:00Z</time>
+      </trkpt>
+      <trkpt lat="51.501750" lon="-0.123550">
+        <ele>16.2</ele>
+        <time>2026-06-03T09:03:30Z</time>
+      </trkpt>
+      <trkpt lat="51.501900" lon="-0.123400">
+        <ele>16.5</ele>
+        <time>2026-06-03T09:04:00Z</time>
+      </trkpt>
+      <trkpt lat="51.502050" lon="-0.123250">
+        <ele>16.3</ele>
+        <time>2026-06-03T09:04:30Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

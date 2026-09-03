@@ -1,0 +1,18 @@
+# Used when the backend itself runs as a service inside Docker Compose - the
+# datasource host defaults to the compose service name ("postgres") rather
+# than localhost. A separate process wires the actual env vars in
+# deploy/docker-compose.yml; every value here still has a sensible default
+# so the image also runs standalone.
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/mysportsapp}
+    username: ${SPRING_DATASOURCE_USERNAME:mysportsapp}
+    password: ${SPRING_DATASOURCE_PASSWORD:mysportsapp}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-docker-secret-do-not-use-in-production}
+    expiration-days: ${JWT_EXPIRATION_DAYS:7}
+  admin-bootstrap:
+    email: ${ADMIN_BOOTSTRAP_EMAIL:}
+    password: ${ADMIN_BOOTSTRAP_PASSWORD:}

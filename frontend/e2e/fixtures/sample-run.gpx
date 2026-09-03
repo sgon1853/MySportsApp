@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="MySportsApp e2e fixture" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>E2E sample run</name>
+    <trkseg>
+      <trkpt lat="45.5000" lon="-122.6000">
+        <ele>30.0</ele>
+        <time>2026-08-20T07:15:00Z</time>
+      </trkpt>
+      <trkpt lat="45.5010" lon="-122.6010">
+        <ele>32.5</ele>
+        <time>2026-08-20T07:16:00Z</time>
+      </trkpt>
+      <trkpt lat="45.5020" lon="-122.6020">
+        <ele>35.0</ele>
+        <time>2026-08-20T07:17:00Z</time>
+      </trkpt>
+      <trkpt lat="45.5030" lon="-122.6030">
+        <ele>33.0</ele>
+        <time>2026-08-20T07:18:00Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>
