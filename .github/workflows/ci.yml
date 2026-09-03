@@ -67,7 +67,7 @@ jobs:
             sleep 5
           done
           echo "backend did not become healthy in time" >&2
-          docker compose -f deploy/docker-compose.yml logs
+          docker compose -f deploy/docker-compose.yml --env-file .env logs
           exit 1
       - uses: actions/setup-node@v4
         with:
@@ -87,7 +87,7 @@ jobs:
           E2E_USER_PASSWORD: ci-admin-password
       - name: Dump logs on failure
         if: failure()
-        run: docker compose -f deploy/docker-compose.yml logs
+        run: docker compose -f deploy/docker-compose.yml --env-file .env logs
       - name: Tear down
         if: always()
-        run: docker compose -f deploy/docker-compose.yml down -v
+        run: docker compose -f deploy/docker-compose.yml --env-file .env down -v
