@@ -2,6 +2,7 @@
 <gpx version="1.1" creator="MySportsApp e2e fixture" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
     <name>E2E sample run</name>
+    <type>running</type>
     <trkseg>
       <trkpt lat="45.5000" lon="-122.6000">
         <ele>30.0</ele>
