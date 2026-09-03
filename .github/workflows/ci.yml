@@ -100,7 +100,11 @@ jobs:
   # serving the last-good revision untouched, so there is nothing to roll
   # back. Both jobs also no-op (rather than fail) until GCP_PROJECT_ID is
   # configured, so pushing before the one-time cloud setup doesn't show a
-  # false failure. See docs/deployment.md for that setup.
+  # false failure. See docs/deployment.md for that setup. Exception: the
+  # very first deploy of each service can't use --no-traffic at all (gcloud
+  # rejects it when a service doesn't exist yet), so that one deploy goes
+  # live immediately with no canary window - unavoidable for a brand-new
+  # Cloud Run service, and only affects the one-time bootstrap.
   deploy-backend:
     runs-on: ubuntu-latest
     needs: [backend, frontend, e2e]
@@ -127,11 +131,19 @@ jobs:
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
       - name: Deploy candidate revision (no traffic yet)
         run: |
+          # --no-traffic is rejected by gcloud when creating a brand-new
+          # service (there's no existing revision for "no traffic" to be
+          # relative to) - only meaningful from the second deploy onward.
+          NO_TRAFFIC_FLAG="--no-traffic"
+          if ! gcloud run services describe mysportsapp-backend --region "${{ vars.GCP_REGION }}" >/dev/null 2>&1; then
+            echo "First-ever deploy of mysportsapp-backend - skipping --no-traffic (nothing to canary against yet)."
+            NO_TRAFFIC_FLAG=""
+          fi
           gcloud run deploy mysportsapp-backend \
             --image "$IMAGE" \
             --region "${{ vars.GCP_REGION }}" \
             --allow-unauthenticated \
-            --no-traffic --tag candidate \
+            $NO_TRAFFIC_FLAG --tag candidate \
             --set-env-vars "SPRING_PROFILES_ACTIVE=docker,SPRING_DATASOURCE_URL=${{ vars.NEON_DATASOURCE_URL }},SPRING_DATASOURCE_USERNAME=${{ vars.NEON_DATASOURCE_USERNAME }},ADMIN_BOOTSTRAP_EMAIL=${{ vars.ADMIN_BOOTSTRAP_EMAIL }},JWT_EXPIRATION_DAYS=7,APP_CORS_ALLOWED_ORIGIN_PATTERNS=${{ vars.APP_CORS_ALLOWED_ORIGIN_PATTERNS || 'http://localhost:*' }}" \
             --set-secrets "JWT_SECRET=jwt-secret:latest,ADMIN_BOOTSTRAP_PASSWORD=admin-bootstrap-password:latest,SPRING_DATASOURCE_PASSWORD=db-password:latest" \
             --quiet
@@ -182,11 +194,16 @@ jobs:
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
       - name: Deploy candidate revision (no traffic yet)
         run: |
+          NO_TRAFFIC_FLAG="--no-traffic"
+          if ! gcloud run services describe mysportsapp-frontend --region "${{ vars.GCP_REGION }}" >/dev/null 2>&1; then
+            echo "First-ever deploy of mysportsapp-frontend - skipping --no-traffic (nothing to canary against yet)."
+            NO_TRAFFIC_FLAG=""
+          fi
           gcloud run deploy mysportsapp-frontend \
             --image "$IMAGE" \
             --region "${{ vars.GCP_REGION }}" \
             --allow-unauthenticated \
-            --no-traffic --tag candidate \
+            $NO_TRAFFIC_FLAG --tag candidate \
             --quiet
       - name: Smoke-test the candidate revision
         run: |
