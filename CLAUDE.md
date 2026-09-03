@@ -2,7 +2,8 @@
 
 Guidance for Claude Code (or any future contributor, human or AI) working in this repository. Read this
 before making non-trivial changes. For *why* key decisions were made, see `docs/adr/`. For *how to run*
-things, see `README.md` — this file is about how to safely *extend* the codebase.
+things, see `README.md`. For a diagram-level view of the system, see `docs/architecture.md`. This file
+is about how to safely *extend* the codebase.
 
 ## What this app is
 
@@ -103,6 +104,27 @@ frontend/src/
   `npm run test` are fast enough to run on every non-trivial change.
 - Keep providers ignorant of each other and of the database — that boundary is what keeps "add a
   provider" cheap.
+
+## Documentation maintenance — do this on every non-trivial change, no need to be asked
+
+Treat these as part of the change, not a follow-up task, and do them in the same commit:
+
+- **`docs/architecture.md`**: if the change adds/removes a module, provider, table/column, deploy
+  target, or changes a core flow (import, auth), update the corresponding Mermaid diagram in that file
+  (component, sequence, ER, provider class, or deployment). Adding a new provider means adding it to
+  the component diagram and provider class diagram; a new Flyway migration means updating the ER
+  diagram; a CI/CD or deploy topology change means updating the deployment diagram.
+- **`README.md`**: update the Status section when a provider or major feature moves from "not yet
+  built" to working, and the Stack table if the toolchain changes.
+- **`docs/adr/`**: add a new numbered ADR (don't edit an existing one) when the change makes or reverses
+  an architectural decision — a new cross-cutting pattern, a reversal of an existing ADR, a new
+  infra dependency. Routine bug fixes and additive features following an existing pattern don't need one.
+- **`docs/deployment.md`**: update when the one-time cloud setup steps, required GitHub
+  variables/secrets, or the deploy job behavior change.
+- This file (`CLAUDE.md`): update the module map, a recipe, or a principle when the change alters the
+  shape they describe (a new top-level package, a new recipe step that recipe-followers would need).
+
+If none of the above actually changed shape, skip it — don't pad a small fix with unrelated doc churn.
 
 ## Commands quick reference
 
