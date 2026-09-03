@@ -1,5 +1,8 @@
 server {
-    listen 80;
+    # ${PORT} is substituted by the base nginx image's docker-entrypoint.d
+    # envsubst-on-templates step at container startup. Cloud Run injects PORT
+    # dynamically; docker-compose/local runs set it to 80 (see Dockerfile).
+    listen ${PORT};
     server_name _;
 
     root /usr/share/nginx/html;

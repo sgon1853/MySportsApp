@@ -15,8 +15,14 @@ export function setStoredToken(token: string | null): void {
   }
 }
 
+// Same-origin "/api" works when nginx proxies to the backend (docker-compose,
+// local dev via the Vite proxy). Deploying frontend and backend as separate
+// services with their own origins (e.g. two Cloud Run services) needs an
+// absolute URL instead, baked in at build time - see .env.production.example.
+const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+
 export const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL,
 })
 
 apiClient.interceptors.request.use((config) => {

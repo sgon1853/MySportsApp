@@ -17,10 +17,20 @@ spring:
       max-request-size: 25MB
 
 server:
-  port: 8080
+  # Cloud Run injects PORT and requires the container to listen on it;
+  # everywhere else (local, docker-compose) it's unset and falls back to 8080.
+  port: ${PORT:8080}
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+
+app:
+  cors:
+    # Comma-separated list of origins allowed to call the API cross-origin
+    # (e.g. a separately-deployed frontend). Same-origin deployments
+    # (docker-compose/nginx proxy) never hit CORS at all, so the default
+    # here only matters for `npm run dev` talking to a locally-run backend.
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}
