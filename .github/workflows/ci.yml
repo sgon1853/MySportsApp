@@ -98,12 +98,13 @@ jobs:
   # its own per-revision URL, and only then shift production traffic to
   # it. A failed smoke test simply never gets promoted - production keeps
   # serving the last-good revision untouched, so there is nothing to roll
-  # back. See docs/deployment.md for the one-time GCP/Neon setup this
-  # depends on.
+  # back. Both jobs also no-op (rather than fail) until GCP_PROJECT_ID is
+  # configured, so pushing before the one-time cloud setup doesn't show a
+  # false failure. See docs/deployment.md for that setup.
   deploy-backend:
     runs-on: ubuntu-latest
     needs: [backend, frontend, e2e]
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push' && vars.GCP_PROJECT_ID != ''
     environment: production
     permissions:
       contents: read
@@ -158,7 +159,7 @@ jobs:
   deploy-frontend:
     runs-on: ubuntu-latest
     needs: [deploy-backend]
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push' && vars.GCP_PROJECT_ID != ''
     environment: production
     permissions:
       contents: read
