@@ -11,7 +11,7 @@ import { ProviderSelect } from './ProviderSelect'
  * as opposed to a handled 422, which still produces a normal `result` with
  * status FAILED. Either way the file is reported individually rather than
  * aborting the rest of the batch. */
-interface FileUploadOutcome {
+export interface FileUploadOutcome {
   fileName: string
   result: ImportBatchResult | null
   error: string | null
@@ -149,7 +149,7 @@ function overallStatusOf(outcomes: FileUploadOutcome[]): ImportBatchStatus {
   return 'PARTIAL'
 }
 
-function UploadResultSummary({ outcomes }: { outcomes: FileUploadOutcome[] }) {
+export function UploadResultSummary({ outcomes }: { outcomes: FileUploadOutcome[] }) {
   const multiple = outcomes.length > 1
   const overallStatus = overallStatusOf(outcomes)
 

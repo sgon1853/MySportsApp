@@ -55,4 +55,10 @@ export const handlers = [
     }
     return HttpResponse.json(mockActivityDetail)
   }),
+
+  // Not-connected by default; individual tests override with server.use(...)
+  // for the connected/sync cases.
+  http.get('/api/v1/integrations/strava/status', () => {
+    return HttpResponse.json({ connected: false, connectedAt: null })
+  }),
 ]

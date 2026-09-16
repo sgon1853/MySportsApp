@@ -139,6 +139,22 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- Mockito's bundled ByteBuddy doesn't yet officially support
+					     every JDK a contributor might run tests on (a newer JDK than
+					     ByteBuddy has caught up with rejects mock creation outright:
+					     "Java N is not supported by the current version of Byte
+					     Buddy"). This is ByteBuddy's own documented escape hatch -
+					     attempt instrumentation anyway on an unrecognized-but-likely-
+					     compatible class file version. A no-op on JDKs ByteBuddy
+					     already supports (e.g. CI's pinned JDK 21), so safe to set
+					     unconditionally rather than only where it's currently needed. -->
+					<argLine>-Dnet.bytebuddy.experimental=true</argLine>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 

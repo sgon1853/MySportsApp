@@ -17,6 +17,9 @@ export function Layout({ children }: { children: ReactNode }) {
             <NavLink to="/upload" className={({ isActive }) => (isActive ? 'active' : '')}>
               Upload
             </NavLink>
+            <NavLink to="/integrations/strava" className={({ isActive }) => (isActive ? 'active' : '')}>
+              Strava
+            </NavLink>
             {user?.role === 'ADMIN' && (
               <NavLink to="/admin/invite" className={({ isActive }) => (isActive ? 'active' : '')}>
                 Admin

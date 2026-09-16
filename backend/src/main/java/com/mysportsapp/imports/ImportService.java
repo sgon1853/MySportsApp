@@ -23,7 +23,10 @@ import java.util.UUID;
 /**
  * Orchestrates a single file upload end to end: resolve the provider, parse
  * the file, dedupe against what this user has already imported, persist
- * what's new, and record the outcome on an {@link ImportBatch}.
+ * what's new, and record the outcome on an {@link ImportBatch}. The dedupe
+ * -> persist -> record-outcome half ({@link #persistParsedActivities}) is
+ * also the shared core for import paths that don't have a "file" to parse at
+ * all, like a Strava API sync.
  */
 @Service
 public class ImportService {
@@ -67,7 +70,26 @@ public class ImportService {
             return new Outcome(toDto(batch), true);
         }
 
-        List<ParsedActivity> parsedActivities = parseResult.activities();
+        return persistParsedActivities(batch, userId, providerId, parseResult.activities());
+    }
+
+    /**
+     * The parse-agnostic half of an import: dedupe against what this user has
+     * already stored, persist what's new, and record the outcome on the given
+     * (already-created) batch. Shared by every import path regardless of how
+     * the {@link ParsedActivity} list was produced - a parsed file
+     * ({@link #importFile}) or a non-file source like a Strava API sync
+     * ({@code StravaSyncService}), which has no "file" to parse at all and so
+     * can't go through {@link #importFile}. Callers are responsible for
+     * creating and saving the {@link ImportBatch} beforehand (so they can
+     * choose their own batch granularity - one batch per file here, one batch
+     * per whole sync run for Strava) and for translating a hard failure
+     * (nothing could be fetched/parsed at all) into a FAILED batch themselves,
+     * the same way {@link #importFile}'s catch block does.
+     */
+    @Transactional
+    public Outcome persistParsedActivities(ImportBatch batch, UUID userId, String providerId,
+                                            List<ParsedActivity> parsedActivities) {
         int recordsParsed = parsedActivities.size();
 
         DedupService.DedupResult dedupResult = dedupService.split(userId, parsedActivities);

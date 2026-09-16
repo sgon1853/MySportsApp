@@ -4,6 +4,7 @@ import { RequireAuth } from './auth/RequireAuth'
 import { Layout } from './components/Layout'
 import { ActivityDetailPage } from './features/activities/ActivityDetailPage'
 import { ActivityListPage } from './features/activities/ActivityListPage'
+import { StravaIntegrationPage } from './features/integrations/StravaIntegrationPage'
 import { UploadPage } from './features/imports/UploadPage'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { AdminInvitePage } from './pages/AdminInvitePage'
@@ -37,6 +38,14 @@ export function AppRouter() {
           element={
             <RequireAuth>
               <UploadPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/integrations/strava"
+          element={
+            <RequireAuth>
+              <StravaIntegrationPage />
             </RequireAuth>
           }
         />

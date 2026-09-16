@@ -1,5 +1,7 @@
 package com.mysportsapp.common.exception;
 
+import com.mysportsapp.integrations.strava.StravaNotConfiguredException;
+import com.mysportsapp.integrations.strava.StravaNotConnectedException;
 import com.mysportsapp.provider.spi.ProviderParseException;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -60,6 +62,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnknownProviderException.class)
     public ResponseEntity<ErrorResponse> handleUnknownProvider(UnknownProviderException ex) {
         return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(StravaNotConnectedException.class)
+    public ResponseEntity<ErrorResponse> handleStravaNotConnected(StravaNotConnectedException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(StravaNotConfiguredException.class)
+    public ResponseEntity<ErrorResponse> handleStravaNotConfigured(StravaNotConfiguredException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)

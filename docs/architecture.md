@@ -23,7 +23,7 @@ flowchart TB
         Sec["security<br/>JWT filter, principal"]
         AuthSvc["auth<br/>login / invite"]
         ImportCtrl["imports<br/>ImportController"]
-        ImportSvc["imports<br/>ImportService<br/>(orchestrator)"]
+        ImportSvc["imports<br/>ImportService<br/>(orchestrator + shared<br/>persistParsedActivities)"]
         Registry["provider<br/>DataProviderRegistry"]
         Dedup["dedup<br/>DedupService"]
         ActivitySvc["activity<br/>ActivityService /<br/>VisualizationTypeResolver"]
@@ -32,9 +32,18 @@ flowchart TB
             Suunto["provider/suunto<br/>SuuntoGpxProvider"]
             Future["provider/... <br/>(Cressi, Apple Health, Renpho<br/>— not yet implemented)"]
         end
+
+        subgraph StravaMod["integrations/strava (NOT a DataProvider - see ADR 0005)"]
+            StravaCtrl["StravaController<br/>connect / callback / status / sync"]
+            StravaOAuth["StravaOAuthService"]
+            StravaSync["StravaSyncService"]
+            StravaApi["StravaApiClient<br/>(external: api.strava.com)"]
+            StravaMapper["StravaActivityMapper<br/>-> ParsedActivity"]
+        end
     end
 
-    DB[("Postgres<br/>(users, import_batches,<br/>activities)")]
+    DB[("Postgres<br/>(users, import_batches,<br/>activities, strava_connections)")]
+    StravaExt(["Strava API<br/>(external)"])
 
     API -->|HTTPS + JWT| Sec
     Upload --> API
@@ -44,6 +53,7 @@ flowchart TB
     Sec --> AuthSvc
     Sec --> ImportCtrl
     Sec --> ActivitySvc
+    Sec --> StravaCtrl
 
     ImportCtrl --> ImportSvc
     ImportSvc --> Registry
@@ -53,6 +63,15 @@ flowchart TB
     ImportSvc --> DB
     ActivitySvc --> DB
     AuthSvc --> DB
+
+    StravaCtrl --> StravaOAuth
+    StravaCtrl --> StravaSync
+    StravaOAuth --> DB
+    StravaSync --> StravaApi
+    StravaApi --> StravaExt
+    StravaApi --> DB
+    StravaSync --> StravaMapper
+    StravaMapper --> ImportSvc
 
     style Future stroke-dasharray: 5 5
 ```
@@ -99,16 +118,66 @@ sequenceDiagram
     FE-->>U: show result, then list refreshes via Activities API
 ```
 
+## 2b. Strava sync flow (Phase 1 — on-demand, not continuous)
+
+No file, no `DataProvider` — see [ADR 0005](adr/0005-strava-integration-not-a-dataprovider.md). Connect
+is a one-time OAuth handshake; Sync can be triggered on demand as often as the user likes, reusing the
+same dedup/persist path a GPX upload uses via `ImportService.persistParsedActivities`.
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant FE as Frontend (StravaIntegrationPage)
+    participant SC as StravaController
+    participant SO as StravaOAuthService
+    participant SS as StravaSyncService
+    participant SA as StravaApiClient
+    participant ST as Strava API
+    participant IS as ImportService
+    participant DB as Postgres
+
+    U->>FE: click "Connect to Strava"
+    FE->>SC: POST /connect (JWT auth)
+    SC->>SO: buildAuthorizeUrl(userId)
+    SO-->>SC: authorize URL (state -> userId, in-memory)
+    SC-->>FE: { authorizeUrl }
+    FE->>ST: browser navigates to authorizeUrl
+    ST-->>SC: GET /callback?code&state (no JWT - browser redirect)
+    SC->>SO: completeConnection(code, state)
+    SO->>ST: POST /oauth/token (exchange code)
+    SO->>DB: save StravaConnection (tokens encrypted)
+    SC-->>FE: 302 redirect to /integrations/strava?connected=true
+
+    U->>FE: click "Sync now"
+    FE->>SC: POST /sync (JWT auth)
+    SC->>SS: sync(userId)
+    SS->>DB: create ImportBatch (providerId="strava")
+    loop each page of /athlete/activities
+        SS->>SA: listActivities(connection, page)
+        SA->>ST: GET /athlete/activities (refreshes token if near expiry)
+        loop each activity on the page
+            SS->>SA: getStreams(connection, activityId)
+            SA->>ST: GET /activities/{id}/streams
+            SS->>SS: map to ParsedActivity
+        end
+    end
+    SS->>IS: persistParsedActivities(batch, userId, "strava", activities)
+    IS->>DB: dedupe + saveAll + complete batch
+    IS-->>SC: ImportBatchResultDto
+    SC-->>FE: 200 + counts
+```
+
 ## 3. Data model
 
 Every tenant-owned table carries `user_id` and is only ever queried scoped to it — see
 [`../CLAUDE.md`](../CLAUDE.md) principle 2 and `TenantScopingArchTest`. Reflects the current Flyway
-migrations (`V1`–`V3`).
+migrations (`V1`–`V4`).
 
 ```mermaid
 erDiagram
     USERS ||--o{ IMPORT_BATCHES : "uploads"
     USERS ||--o{ ACTIVITIES : "owns"
+    USERS ||--o| STRAVA_CONNECTIONS : "connects (at most one)"
     IMPORT_BATCHES ||--o{ ACTIVITIES : "produced"
 
     USERS {
@@ -154,6 +223,16 @@ erDiagram
         varchar dedup_key
         timestamptz created_at
     }
+
+    STRAVA_CONNECTIONS {
+        uuid id PK
+        uuid user_id FK "UNIQUE - one connection per user"
+        bigint strava_athlete_id UK
+        varchar access_token "encrypted at rest (AES/GCM)"
+        varchar refresh_token "encrypted at rest (AES/GCM)"
+        timestamptz token_expires_at
+        timestamptz connected_at
+    }
 ```
 
 `(user_id, dedup_key)` is unique on `activities` — that constraint, not application logic alone, is
@@ -165,6 +244,13 @@ as JSONB rather than a normalized table).
 
 Adding a provider means implementing one interface and annotating it `@Component` — see "Recipe: adding
 a new data provider" in [`../CLAUDE.md`](../CLAUDE.md). No other class is touched.
+
+This pattern is specifically for *file-based* sources. Strava sync (§2b) deliberately isn't a
+`DataProvider` — there's no file, just two API calls — see
+[ADR 0005](adr/0005-strava-integration-not-a-dataprovider.md). It produces the same `ParsedActivity`
+DTOs a provider would and feeds them into the same shared `ImportService.persistParsedActivities`, so
+the diagram below is still the right mental model for "how does a new activity type get in" even though
+Strava itself sits outside it.
 
 ```mermaid
 classDiagram
