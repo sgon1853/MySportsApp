@@ -34,11 +34,13 @@ Source: [Suunto — "What type of files can I export from the Suunto app?"](http
 1. Log in to MySportsApp.
 2. Go to **Upload**.
 3. Provider: select **Suunto (GPX)**.
-4. File: choose the `.gpx` file you exported.
-5. Submit — you'll immediately see how many records were parsed and inserted. Re-uploading the same
-   workout is safe: it's recognized as a duplicate and reported as such rather than creating a second
-   entry.
-6. Go to **Activities** — the workout appears in the list.
+4. File: choose the `.gpx` file(s) you exported — you can select multiple files at once (e.g. your
+   whole exported history) and they'll upload one after another in a single submission, with an
+   aggregated result plus a per-file breakdown.
+5. Submit — you'll immediately see how many records were parsed and inserted, in total and per file.
+   Re-uploading the same workout is safe: it's recognized as a duplicate and reported as such rather
+   than creating a second entry, whether it's the only file in the batch or one of many.
+6. Go to **Activities** — the workout(s) appear in the list.
 
 ### 3. What you'll see
 

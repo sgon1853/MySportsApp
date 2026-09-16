@@ -3,8 +3,19 @@ import type { FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getProviders, uploadActivity } from '../../api/imports'
 import { getApiErrorMessage } from '../../api/client'
-import type { ImportBatchResult } from '../../api/types'
+import type { ImportBatchResult, ImportBatchStatus } from '../../api/types'
 import { ProviderSelect } from './ProviderSelect'
+
+/** One file's outcome within a (possibly multi-file) upload batch. `result`
+ * is null when the request itself failed (network error, unexpected 5xx) -
+ * as opposed to a handled 422, which still produces a normal `result` with
+ * status FAILED. Either way the file is reported individually rather than
+ * aborting the rest of the batch. */
+interface FileUploadOutcome {
+  fileName: string
+  result: ImportBatchResult | null
+  error: string | null
+}
 
 export function UploadPage() {
   const queryClient = useQueryClient()
@@ -16,11 +27,26 @@ export function UploadPage() {
   })
 
   const [providerId, setProviderId] = useState('')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [formError, setFormError] = useState<string | null>(null)
 
   const uploadMutation = useMutation({
-    mutationFn: ({ file, providerId }: { file: File; providerId: string }) => uploadActivity(file, providerId),
+    mutationFn: async ({ files, providerId }: { files: File[]; providerId: string }) => {
+      const outcomes: FileUploadOutcome[] = []
+      // Sequential, not parallel: if the same activity is present in two of
+      // the selected files, sequential uploads let the second correctly see
+      // the first as already-inserted via the dedup check, instead of both
+      // requests racing past that check before either is persisted.
+      for (const file of files) {
+        try {
+          const result = await uploadActivity(file, providerId)
+          outcomes.push({ fileName: file.name, result, error: null })
+        } catch (error) {
+          outcomes.push({ fileName: file.name, result: null, error: getApiErrorMessage(error) })
+        }
+      }
+      return outcomes
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['activities'] })
     },
@@ -31,8 +57,8 @@ export function UploadPage() {
     setFormError(null)
     uploadMutation.reset()
 
-    if (!selectedFile) {
-      setFormError('Choose a file to upload.')
+    if (selectedFiles.length === 0) {
+      setFormError('Choose at least one file to upload.')
       return
     }
     if (!providerId) {
@@ -40,11 +66,11 @@ export function UploadPage() {
       return
     }
 
-    uploadMutation.mutate({ file: selectedFile, providerId })
+    uploadMutation.mutate({ files: selectedFiles, providerId })
   }
 
   function handleReset() {
-    setSelectedFile(null)
+    setSelectedFiles([])
     setProviderId('')
     setFormError(null)
     uploadMutation.reset()
@@ -53,11 +79,11 @@ export function UploadPage() {
     }
   }
 
-  const result: ImportBatchResult | undefined = uploadMutation.data
+  const outcomes = uploadMutation.data
 
   return (
     <div className="page">
-      <h1>Upload an activity</h1>
+      <h1>Upload activities</h1>
 
       {providersQuery.isLoading && <p>Loading providers…</p>}
       {providersQuery.isError && (
@@ -73,11 +99,6 @@ export function UploadPage() {
               {formError}
             </div>
           )}
-          {uploadMutation.isError && (
-            <div role="alert" className="banner banner--error">
-              {getApiErrorMessage(uploadMutation.error, 'Upload failed.')}
-            </div>
-          )}
 
           <label htmlFor="provider-select">Device / provider</label>
           <ProviderSelect
@@ -87,19 +108,27 @@ export function UploadPage() {
             disabled={uploadMutation.isPending}
           />
 
-          <label htmlFor="activity-file">Activity file</label>
+          <label htmlFor="activity-file">Activity file(s)</label>
           <input
             id="activity-file"
             name="file"
             type="file"
+            multiple
             ref={fileInputRef}
             disabled={uploadMutation.isPending}
-            onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => setSelectedFiles(Array.from(e.target.files ?? []))}
           />
+          {selectedFiles.length > 1 && (
+            <p className="upload-form__file-count">{selectedFiles.length} files selected</p>
+          )}
 
           <div className="upload-form__actions">
             <button type="submit" disabled={uploadMutation.isPending}>
-              {uploadMutation.isPending ? 'Uploading…' : 'Upload'}
+              {uploadMutation.isPending
+                ? 'Uploading…'
+                : selectedFiles.length > 1
+                  ? `Upload ${selectedFiles.length} files`
+                  : 'Upload'}
             </button>
             <button type="button" onClick={handleReset} disabled={uploadMutation.isPending}>
               Reset
@@ -108,41 +137,83 @@ export function UploadPage() {
         </form>
       )}
 
-      {result && <UploadResultSummary result={result} />}
+      {outcomes && <UploadResultSummary outcomes={outcomes} />}
     </div>
   )
 }
 
-function UploadResultSummary({ result }: { result: ImportBatchResult }) {
+function overallStatusOf(outcomes: FileUploadOutcome[]): ImportBatchStatus {
+  const statuses = outcomes.map((o) => o.result?.status ?? 'FAILED')
+  if (statuses.every((s) => s === 'SUCCESS')) return 'SUCCESS'
+  if (statuses.every((s) => s === 'FAILED')) return 'FAILED'
+  return 'PARTIAL'
+}
+
+function UploadResultSummary({ outcomes }: { outcomes: FileUploadOutcome[] }) {
+  const multiple = outcomes.length > 1
+  const overallStatus = overallStatusOf(outcomes)
+
+  const totals = outcomes.reduce(
+    (acc, o) => ({
+      recordsParsed: acc.recordsParsed + (o.result?.recordsParsed ?? 0),
+      recordsInserted: acc.recordsInserted + (o.result?.recordsInserted ?? 0),
+      recordsDeduped: acc.recordsDeduped + (o.result?.recordsDeduped ?? 0),
+      recordsFailed: acc.recordsFailed + (o.result?.recordsFailed ?? 0),
+    }),
+    { recordsParsed: 0, recordsInserted: 0, recordsDeduped: 0, recordsFailed: 0 },
+  )
+
+  // Single-file uploads keep exactly the old, unprefixed error text; a
+  // multi-file batch prefixes each error with the file it came from so a
+  // failure in one file doesn't get lost among the others.
+  const allErrors = outcomes.flatMap((o) => {
+    const prefix = multiple ? `${o.fileName}: ` : ''
+    if (o.error) return [`${prefix}${o.error}`]
+    return (o.result?.errors ?? []).map((err) => `${prefix}${err}`)
+  })
+
   return (
-    <section className="card upload-result" aria-label="Upload result" data-status={result.status}>
+    <section className="card upload-result" aria-label="Upload result" data-status={overallStatus}>
       <h2>
-        Import {result.status === 'SUCCESS' ? 'succeeded' : result.status === 'PARTIAL' ? 'partially succeeded' : 'failed'}
+        Import{' '}
+        {overallStatus === 'SUCCESS' ? 'succeeded' : overallStatus === 'PARTIAL' ? 'partially succeeded' : 'failed'}
       </h2>
       <dl className="stat-grid">
         <div>
           <dt>Parsed</dt>
-          <dd>{result.recordsParsed}</dd>
+          <dd>{totals.recordsParsed}</dd>
         </div>
         <div>
           <dt>Inserted</dt>
-          <dd>{result.recordsInserted}</dd>
+          <dd>{totals.recordsInserted}</dd>
         </div>
         <div>
           <dt>Deduped</dt>
-          <dd>{result.recordsDeduped}</dd>
+          <dd>{totals.recordsDeduped}</dd>
         </div>
         <div>
           <dt>Failed</dt>
-          <dd>{result.recordsFailed}</dd>
+          <dd>{totals.recordsFailed}</dd>
         </div>
       </dl>
-      {result.errors.length > 0 && (
+      {multiple && (
+        <ul className="upload-result__files" aria-label="Per-file results">
+          {outcomes.map((o) => (
+            <li key={o.fileName}>
+              <strong>{o.fileName}</strong>:{' '}
+              {o.error
+                ? `failed to upload (${o.error})`
+                : `${o.result?.status.toLowerCase()} — ${o.result?.recordsInserted} inserted, ${o.result?.recordsDeduped} deduped`}
+            </li>
+          ))}
+        </ul>
+      )}
+      {allErrors.length > 0 && (
         <div>
           <p>Errors:</p>
           <ul>
-            {result.errors.map((err) => (
-              <li key={err}>{err}</li>
+            {allErrors.map((err, i) => (
+              <li key={`${i}-${err}`}>{err}</li>
             ))}
           </ul>
         </div>

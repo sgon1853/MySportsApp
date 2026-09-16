@@ -158,6 +158,18 @@ select {
   margin-top: 0.5rem;
 }
 
+.upload-form__file-count {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.upload-result__files {
+  margin: 1rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+}
+
 .card {
   background: var(--bg);
   border: 1px solid var(--border);
