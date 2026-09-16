@@ -94,8 +94,8 @@ rollback/rotation works.
    duplicates.
 4. Go to **Activities** — the new data appears automatically.
 
-Currently supported: **Suunto Race S**, exported as a `.gpx` file (from the Suunto app, or via Strava/
-Garmin Connect-style GPX export if you route your Suunto data through another platform).
+For exactly how to export a file from each supported device/app, see [`docs/usage.md`](docs/usage.md) —
+currently covers **Suunto Race S**; gets a new section every time another provider ships.
 
 ## Repository layout
 
@@ -105,6 +105,7 @@ frontend/   React + TypeScript SPA (Vite)
 deploy/     docker-compose.yml — the whole stack, for local use
 docs/adr/   Architecture Decision Records
 docs/deployment.md   One-time cloud setup (GCP + Neon) for the production deploy pipeline
+docs/usage.md   How to export data from each supported device/app and import it
 .github/    CI + CD workflow
 CLAUDE.md   How this codebase is organized, and how to safely extend it (new providers, new
             visualizations) — read this before making non-trivial changes, by hand or with AI assistance

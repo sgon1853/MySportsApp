@@ -121,6 +121,10 @@ Treat these as part of the change, not a follow-up task, and do them in the same
   infra dependency. Routine bug fixes and additive features following an existing pattern don't need one.
 - **`docs/deployment.md`**: update when the one-time cloud setup steps, required GitHub
   variables/secrets, or the deploy job behavior change.
+- **`docs/usage.md`**: add a new section (Export → Import → What you'll see, see the existing Suunto
+  section for the template) whenever a new data provider ships, or update an existing section if its
+  export flow, supported file types, or visualization changes. There's a project skill for this —
+  `.claude/skills/provider-usage-docs/` — use it rather than reinventing the structure each time.
 - This file (`CLAUDE.md`): update the module map, a recipe, or a principle when the change alters the
   shape they describe (a new top-level package, a new recipe step that recipe-followers would need).
 
