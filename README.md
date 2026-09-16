@@ -85,17 +85,12 @@ on its own private URL before it receives any production traffic, so a bad deplo
 see [`docs/deployment.md`](docs/deployment.md) for the one-time cloud setup this depends on and how
 rollback/rotation works.
 
-## Importing your data
+## Using the app
 
-1. Log in, go to **Upload**.
-2. Pick the provider that matches where the file came from (only providers the backend actually supports
-   appear in the dropdown).
-3. Pick the exported file and submit. You'll see how many records were parsed, inserted, and skipped as
-   duplicates.
-4. Go to **Activities** — the new data appears automatically.
-
-For exactly how to export a file from each supported device/app, see [`docs/usage.md`](docs/usage.md) —
-currently covers **Suunto Race S**; gets a new section every time another provider ships.
+This README covers running and deploying the codebase. For the app itself — the production URL, how to
+log in, and what you can do once you're in (activities, uploads, admin invites), plus exactly how to
+export a file from each supported device/app — see [`docs/usage.md`](docs/usage.md), which gets a new
+section every time another provider ships.
 
 ## Repository layout
 
