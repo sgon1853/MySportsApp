@@ -12,6 +12,10 @@ function selectFile(input: HTMLElement) {
   return userEvent.upload(input, file)
 }
 
+function makeFile(name: string) {
+  return new File(['gpx-content'], name, { type: 'application/gpx+xml' })
+}
+
 describe('UploadPage', () => {
   it('renders providers fetched from the API', async () => {
     signInAs(mockUser)
@@ -64,5 +68,78 @@ describe('UploadPage', () => {
 
     const stats = screen.getAllByRole('definition')
     expect(stats.map((el) => el.textContent)).toEqual(['10', '6', '3', '1']) // parsed, inserted, deduped, failed
+  })
+
+  it('uploads multiple files sequentially and shows aggregated + per-file results', async () => {
+    let callCount = 0
+    server.use(
+      http.post('/api/v1/imports', () => {
+        callCount += 1
+        // First file: a fresh insert. Second file: reported as a duplicate.
+        // Sequential (not parallel) uploads are what makes this distinction
+        // meaningful to test at all.
+        return callCount === 1
+          ? HttpResponse.json({
+              batchId: 'batch-run1',
+              providerId: 'suunto-gpx',
+              status: 'SUCCESS',
+              recordsParsed: 1,
+              recordsInserted: 1,
+              recordsDeduped: 0,
+              recordsFailed: 0,
+              errors: [],
+            })
+          : HttpResponse.json({
+              batchId: 'batch-run2',
+              providerId: 'suunto-gpx',
+              status: 'SUCCESS',
+              recordsParsed: 1,
+              recordsInserted: 0,
+              recordsDeduped: 1,
+              recordsFailed: 0,
+              errors: [],
+            })
+      }),
+    )
+
+    signInAs(mockUser)
+    const user = userEvent.setup()
+    renderWithProviders(<UploadPage />)
+
+    await screen.findByRole('option', { name: 'Suunto (GPX)' })
+    await user.selectOptions(screen.getByLabelText(/device \/ provider/i), 'suunto-gpx')
+    await userEvent.upload(screen.getByLabelText(/activity file/i), [makeFile('run1.gpx'), makeFile('run2.gpx')])
+    expect(screen.getByText('2 files selected')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /upload 2 files/i }))
+
+    expect(await screen.findByText(/import succeeded/i)).toBeInTheDocument()
+    const stats = screen.getAllByRole('definition')
+    expect(stats.map((el) => el.textContent)).toEqual(['2', '1', '1', '0']) // aggregated parsed, inserted, deduped, failed
+
+    const fileResults = screen.getByRole('list', { name: 'Per-file results' })
+    expect(fileResults).toHaveTextContent('run1.gpx')
+    expect(fileResults).toHaveTextContent('run2.gpx')
+    expect(callCount).toBe(2)
+  })
+
+  it('reports a per-file failure without losing the rest of the batch', async () => {
+    server.use(
+      http.post('/api/v1/imports', () => HttpResponse.json({ message: 'boom' }, { status: 500 })),
+    )
+
+    signInAs(mockUser)
+    const user = userEvent.setup()
+    renderWithProviders(<UploadPage />)
+
+    await screen.findByRole('option', { name: 'Suunto (GPX)' })
+    await user.selectOptions(screen.getByLabelText(/device \/ provider/i), 'suunto-gpx')
+    await userEvent.upload(screen.getByLabelText(/activity file/i), [makeFile('bad.gpx'), makeFile('also-bad.gpx')])
+    await user.click(screen.getByRole('button', { name: /upload 2 files/i }))
+
+    expect(await screen.findByText(/import failed/i)).toBeInTheDocument()
+    // Exact matches, not regexes: "bad.gpx: boom" is a substring of
+    // "also-bad.gpx: boom", so a loose pattern would match both of these.
+    expect(screen.getByText('bad.gpx: boom')).toBeInTheDocument()
+    expect(screen.getByText('also-bad.gpx: boom')).toBeInTheDocument()
   })
 })
