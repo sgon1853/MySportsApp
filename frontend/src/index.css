@@ -9,6 +9,9 @@
   --error-bg: #fdecea;
   --error-border: #f3b3ac;
   --error-text: #7d2b21;
+  --success-bg: #eaf7ec;
+  --success-border: #b3e0ba;
+  --success-text: #1e5c2a;
   --font: system-ui, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -187,6 +190,12 @@ select {
   background: var(--error-bg);
   border: 1px solid var(--error-border);
   color: var(--error-text);
+}
+
+.banner--success {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
 }
 
 .activity-table {

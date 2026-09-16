@@ -92,3 +92,12 @@ export interface ApiErrorBody {
   message: string
   details?: string[]
 }
+
+export interface StravaConnectResponse {
+  authorizeUrl: string
+}
+
+export interface StravaStatus {
+  connected: boolean
+  connectedAt: string | null
+}

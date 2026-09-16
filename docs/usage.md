@@ -130,6 +130,55 @@ documented, stable API surface).
 
 ---
 
+## Strava (connect + sync, not a file upload)
+
+Unlike every provider above, Strava doesn't need a file at all — connect your account once, then click
+**Sync now** whenever you want. This depends on Suunto's own auto-sync to Strava
+(Suunto app → Profile → Partner services → Strava) — enable that first if you haven't, since MySportsApp
+reads from Strava, not from Suunto directly (see [ADR 0005](adr/0005-strava-integration-not-a-dataprovider.md)
+for why: Suunto has no self-serve API for a personal project).
+
+**Phase 1 status**: connect + on-demand sync only. There's no automatic/continuous sync yet (that needs a
+Strava webhook subscription, a deliberately separate follow-up), and calories aren't imported (Strava
+only exposes those on a per-activity call this phase skips to stay within its rate limits comfortably).
+
+### 0. One-time setup (you do this once, not per sync)
+
+MySportsApp needs its own registered Strava API application before anyone can connect an account to it:
+
+1. Log in at [strava.com](https://www.strava.com) → **Settings → My API Application** → create an app.
+   As of mid-2026 this requires an active Strava subscription and creates an app limited to
+   "Single Player Mode" (your own account only) — exactly the fit for a personal project like this.
+2. Note the **Client ID** and **Client Secret** it gives you.
+3. Set these on the backend (see `.env.example`): `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`,
+   `STRAVA_TOKEN_ENCRYPTION_KEY` (generate with `openssl rand -base64 32` — don't reuse
+   `application.yml`'s checked-in default outside local dev), `STRAVA_REDIRECT_URI` (must exactly match
+   what you register in the Strava app's settings), `STRAVA_FRONTEND_URL`.
+4. Restart the backend. Deploying this to production additionally needs these added to Secret
+   Manager/GitHub variables and wired into the deploy job — not done automatically by this phase, see
+   [ADR 0005](adr/0005-strava-integration-not-a-dataprovider.md)'s Consequences section for why.
+
+### 1. Connect your account
+
+1. Log in to MySportsApp, go to **Strava** in the nav.
+2. Click **Connect to Strava**, approve access on Strava's own consent screen.
+3. You're redirected back showing "Connected".
+
+### 2. Sync
+
+Click **Sync now** any time. It pages through your full Strava history, so the first sync may take a
+little longer than later ones — later syncs are fast since already-imported activities are recognized as
+duplicates the same way a re-uploaded GPX file would be.
+
+### 3. What you'll see
+
+Same **GPS track** visualization as Suunto activities (map, heart-rate-over-time, elevation-over-distance)
+— Strava's `type` is normalized to the same vocabulary (a Strava "Run" and a Suunto "RUNNING" activity
+look the same) where there's a clear equivalent, so importing from both sources doesn't create two
+different-looking categories for what's really the same kind of activity.
+
+---
+
 ## Adding a new provider's section here
 
 Do this as part of implementing the provider (see CLAUDE.md's "adding a new data provider" recipe), not

@@ -26,6 +26,12 @@ backend/src/main/java/com/mysportsapp/
   activity/         Activity entity/repository/controller, visualization-type resolution
   dedup/            Dedup key generation + duplicate detection (provider-agnostic)
   imports/          ImportBatch (audit trail) + ImportService orchestrating parse -> dedup -> persist
+                    (ImportService.persistParsedActivities is the shared dedup->persist core reused by
+                    both a parsed file and integrations/strava - see ADR 0005)
+  integrations/strava/  OAuth connect + on-demand sync with Strava's API - NOT a DataProvider (there's
+                    no file); produces the same ParsedActivity DTOs a provider would. See ADR 0005 and
+                    docs/architecture.md §2b before touching this or modeling a future non-file source
+                    on it.
   common/exception/ Global exception handling / error response shape
 
 frontend/src/
@@ -33,6 +39,7 @@ frontend/src/
   auth/             Auth context, route guards
   pages/            Login, accept-invite, admin-invite
   features/imports/       Upload UI
+  features/integrations/  Strava connect/sync UI
   features/activities/    List + detail pages
   features/activities/charts/  ChartRegistry + one component per visualization type
   router.tsx        All routes in one place

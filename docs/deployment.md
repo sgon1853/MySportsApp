@@ -167,3 +167,27 @@ step of `deploy-frontend` prints the live URL.
 - **Cold starts**: both services scale to zero when idle (that's what keeps this free) — the first request after a while will be a few seconds slower. Not something to fix for a personal-use app.
 - **Rolling back a *promoted* bad revision** (rare — the smoke test should catch most issues first): `gcloud run services update-traffic mysportsapp-backend --region us-central1 --to-revisions=<previous-revision-name>=100`. List revisions with `gcloud run revisions list --service mysportsapp-backend --region us-central1`.
 - **Rotating a secret** (e.g. `jwt-secret`): `echo -n "<new value>" | gcloud secrets versions add jwt-secret --data-file=-`, then re-run the deploy workflow (or `gcloud run services update mysportsapp-backend --region us-central1` with no other changes) to pick up `:latest`. Rotating `jwt-secret` invalidates every issued token — all users are logged out.
+
+## 7. Enabling Strava in production (optional, not done automatically)
+
+Phase 1's Strava integration (see [ADR 0005](adr/0005-strava-integration-not-a-dataprovider.md) and its
+[usage doc](usage.md#strava-connect--sync-not-a-file-upload)) works locally once you set its env vars,
+but `deploy-backend`'s `gcloud run deploy` command in `.github/workflows/ci.yml` deliberately does **not**
+reference any Strava secrets yet — referencing a Secret Manager entry that doesn't exist yet would fail
+every future deploy, not just skip the feature. Do this once you're ready to actually use it in
+production, after verifying Phase 1 against your own Strava account locally:
+
+```bash
+# New secrets, same pattern as the other three:
+openssl rand -base64 32 | gcloud secrets create strava-token-encryption-key --data-file=-
+echo -n "<your Strava API app's client secret>" | gcloud secrets create strava-client-secret --data-file=-
+```
+
+Then add to `deploy-backend`'s `--set-env-vars`/`--set-secrets` in `ci.yml`:
+`STRAVA_CLIENT_ID` (plain env var — not sensitive on its own), `STRAVA_REDIRECT_URI` (the backend's real
+Cloud Run URL + `/api/v1/integrations/strava/callback` — must match exactly what's registered in the
+Strava app's own settings), `STRAVA_FRONTEND_URL` (the frontend's real Cloud Run URL), and
+`STRAVA_CLIENT_SECRET`/`STRAVA_TOKEN_ENCRYPTION_KEY` via `--set-secrets` referencing the two secrets just
+created. Same chicken-and-egg note as `APP_CORS_ALLOWED_ORIGIN_PATTERNS` in step 5 applies to
+`STRAVA_REDIRECT_URI`/`STRAVA_FRONTEND_URL`: both backend and frontend need to exist once, with real
+URLs, before these can be set to their final values.

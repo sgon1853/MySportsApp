@@ -83,6 +83,13 @@ public class SecurityConfig {
                         // exposed (see management.endpoints.web.exposure.include), so
                         // nothing sensitive is reachable here.
                         .requestMatchers("/actuator/**").permitAll()
+                        // Strava's own redirect lands here as a plain browser
+                        // navigation - it can't carry this app's JWT (stored in
+                        // localStorage, not a cookie). The OAuth `state` parameter
+                        // is what StravaOAuthService uses instead to tie it back
+                        // to the right user; every other /integrations/strava/**
+                        // endpoint stays authenticated as normal.
+                        .requestMatchers("/api/v1/integrations/strava/callback").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex

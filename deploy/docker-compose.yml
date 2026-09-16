@@ -33,6 +33,20 @@ services:
       JWT_EXPIRATION_DAYS: ${JWT_EXPIRATION_DAYS:-7}
       ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
+      # Optional - see .env.example and docs/usage.md's Strava section.
+      # Compose doesn't forward .env values into the container unless
+      # listed here, even with a value already set on the host/.env file.
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
+      # An empty string here (unlike the other STRAVA_* vars) would break
+      # EncryptedStringConverter outright - Spring's ${VAR:default} syntax
+      # only falls back to the default when the var is absent, not when
+      # it's present-but-empty, and compose's ${VAR:-} always sets it
+      # (empty or not). Match application.yml's own dev-only default
+      # explicitly so "unset in .env" behaves the same as "truly unset".
+      STRAVA_TOKEN_ENCRYPTION_KEY: ${STRAVA_TOKEN_ENCRYPTION_KEY:-ykExKKyIMrzGl0iwCNNEBLCtBOasQnhVws4ybQ9pmls=}
+      STRAVA_REDIRECT_URI: ${STRAVA_REDIRECT_URI:-}
+      STRAVA_FRONTEND_URL: ${STRAVA_FRONTEND_URL:-}
     ports:
       - "8080:8080"
     healthcheck:
