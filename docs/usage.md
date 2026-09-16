@@ -1,14 +1,63 @@
 # Using MySportsApp
 
-How to get your data out of each supported device/app and into MySportsApp, and what you'll see once
-it's imported. Every provider's section here follows the same shape: **Export** (from the device/app) →
-**Import** (into MySportsApp) → **What you'll see**.
+Where to find the app, how to log in, what you can do once you're in, and — per supported device/app —
+how to get your data out of it and into MySportsApp.
 
 See [`README.md`](../README.md) for which providers are actually implemented right now, and
-[`CLAUDE.md`](../CLAUDE.md) for how to add a new one — this file gets a new section every time a provider
-ships.
+[`CLAUDE.md`](../CLAUDE.md) for how to add a new one.
 
 ---
+
+## Accessing the app
+
+- **Production:** [mysportsapp-frontend-sbfss5jaea-uc.a.run.app](https://mysportsapp-frontend-sbfss5jaea-uc.a.run.app/)
+- **Local (Docker Compose):** [localhost:8081](http://localhost:8081) — see the README's "Running it
+  locally" section to start the stack.
+
+There's no public sign-up. Every account is created by an admin — either the one bootstrapped
+automatically on first startup (`ADMIN_BOOTSTRAP_EMAIL`/`ADMIN_BOOTSTRAP_PASSWORD`), or invited by an
+existing admin (see "Inviting a new user" below). If you don't have credentials yet, ask whoever runs
+the app for an invite.
+
+## Logging in
+
+Go to the app's URL, you'll land on **Login**. Enter the email and password from your account or invite.
+There's no "forgot password" flow yet — ask an admin to send you a fresh invite if you're locked out.
+
+## What you can do
+
+### Activities
+
+**Activities** (the landing page once you're logged in) lists every activity you've imported, across all
+providers: type, date, duration, distance, and average heart rate, with a filter by activity type (e.g.
+`RUN`). Click a row to open the **activity detail** page: a full stat card (distance, duration, pace,
+average/max heart rate, elevation gain, calories, and which provider it came from) plus whichever
+visualization fits that activity's data — today that's a GPS-track view (map + heart-rate and elevation
+charts) for anything with location points; more visualization types land as new data kinds ship (see
+`VisualizationTypeResolver` in `CLAUDE.md`'s module map).
+
+### Uploading data
+
+**Upload** is where you bring new files in — pick the provider matching where the files came from, pick
+one file or several at once (e.g. your whole exported history), and submit. Multiple files upload one
+after another in a single batch, and you get back both an aggregated result and a per-file breakdown of
+how many records were parsed, inserted, and skipped as duplicates. Re-uploading a file you already
+imported is always safe: MySportsApp deduplicates on import rather than creating repeats. See the
+provider sections below for the exact export-then-import steps for each supported device/app.
+
+### Inviting a new user (admin only)
+
+If your account has the admin role, **Admin → Invite** lets you invite someone new: enter their email,
+submit, and you get back a shareable invite link (it expires — the page shows when) rather than the
+invite being emailed automatically. Send that link to the person yourself; opening it takes them to
+**Accept invite**, where they set their own password and are logged in.
+
+---
+
+## Importing your data, by provider
+
+Every provider's section here follows the same shape: **Export** (from the device/app) → **Import**
+(into MySportsApp) → **What you'll see**. This file gets a new section every time a provider ships.
 
 ## Suunto Race S
 
