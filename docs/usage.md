@@ -50,6 +50,35 @@ Suunto activities render as a **GPS track** visualization:
 - A heart-rate-over-time chart and an elevation-over-distance chart, where that data is present in the
   file.
 
+### 4. Getting your full history in at once
+
+Suunto's *only officially documented* export is the one-workout-at-a-time flow above — there's no
+supported "export everything" button in the app. For bulk-importing your whole history, in order of
+what's worth trying first:
+
+1. **Check Suunto app → Profile → Account/Settings for an "Export data" option.** Several users report
+   this exists and emails you a zip of all your workouts (FIT/GPX/JSON), but it isn't documented in
+   Suunto's own support articles, so treat it as "might be there" rather than guaranteed — if you find
+   it, extract the `.gpx` files from the zip and skip straight to importing them (multiple at once,
+   below).
+2. **Request a personal data export from Suunto directly.** Email **privacy@suunto.com** asking for your
+   workout data under GDPR / the EU Data Act — Suunto's own privacy notice commits to providing it in a
+   structured, machine-readable format (JSON, NDJSON, GPX, FIT, or CSV). This is the one *guaranteed*
+   route to everything at once, but forum reports describe turnaround taking **weeks**, not minutes — not
+   useful if you want your history in today, but the reliable option if you're willing to wait.
+3. **Third-party sync tools** (Runalyze, RunGap) have been reported to pull a Suunto account's full
+   history in bulk. Weigh this against the trust cost of granting a third-party service access to your
+   Suunto account before using one.
+4. **Fall back to manual per-workout export** (step 1 above) for however many workouts are worth the
+   effort, then use MySportsApp's multi-file upload to import them all in one submission instead of one
+   at a time — select every exported `.gpx` file at once on the Upload page.
+
+Sources: [Suunto Community Forum — "Bulk export FROM Suunto App?"](https://forum.suunto.com/topic/5265/bulk-export-from-suunto-app),
+[Suunto Community Forum — "Download All Activity Data"](https://forum.suunto.com/topic/8703/download-all-activity-data),
+[Gneta — "How to Export Your Suunto Data — and What It Leaves Out"](https://www.gneta.app/blog/export-suunto-data-guide)
+(current as of research done for this doc — re-verify if it's been a while, since none of this is Suunto's
+documented, stable API surface).
+
 ---
 
 ## Adding a new provider's section here
